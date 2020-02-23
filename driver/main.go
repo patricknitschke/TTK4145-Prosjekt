@@ -9,12 +9,13 @@ import (
 func main() {
 
 	numFloors := 4
-	initElev()
+	elevatorInit()
+	internalQInit()
 	elevio.Init("localhost:15657", numFloors)
 
-	var d elevio.MotorDirection = elevio.MD_Up
+	//var d elevio.MotorDirection = elevio.MD_Up
 	// var current_floor int = 0
-	// var queue [][]bool
+
 	//elevio.SetMotorDirection(d)
 
 	drv_buttons := make(chan elevio.ButtonEvent)
@@ -36,18 +37,18 @@ func main() {
 		case a := <-drv_floors:
 			fmt.Printf("%+v\n", a)
 			if a == numFloors-1 {
-				d = elevio.MD_Down
+				//d = elevio.MD_Down
 			} else if a == 0 {
-				d = elevio.MD_Up
+				//d = elevio.MD_Up
 			}
-			elevio.SetMotorDirection(d)
+			//elevio.SetMotorDirection(d)
 
 		case a := <-drv_obstr:
 			fmt.Printf("%+v\n", a)
 			if a {
-				elevio.SetMotorDirection(elevio.MD_Stop)
+				//elevio.SetMotorDirection(elevio.MD_Stop)
 			} else {
-				elevio.SetMotorDirection(d)
+				//elevio.SetMotorDirection(d)
 			}
 
 		case a := <-drv_stop:
