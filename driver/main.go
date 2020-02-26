@@ -4,6 +4,9 @@ import (
 	"./elevio"
 )
 
+// NNodes is the number of nodes in our network
+const NNodes = 3
+
 func main() {
 	elevio.Init("localhost:15657", NFloors) // Connect to Elevator Server
 
