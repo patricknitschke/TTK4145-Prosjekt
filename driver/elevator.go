@@ -9,6 +9,7 @@ import (
 // ElevDir is an enum for elevator direction - matches elevio.MotorDirection
 type ElevDir int
 
+// Up, Down and Stop are ElevDir symbols
 const (
 	Up   ElevDir = 1
 	Down         = -1
@@ -36,9 +37,34 @@ func elevatorInit() {
 	fmt.Println("Initialised elevator.")
 }
 
-// Remove orders from queue and ...?
-func elevatorServeOrder(floor int, dir ElevDir) {
-	internalQRemoveForDir(floor, dir)
+// Sets the elevator state when we arrive to a new floor (Handles edge cases)
+func elevatorSetNewFloor(newFloor int) {
+	fmt.Print("Arrived at new floor : ")
+	fmt.Printf("%+v\n", newFloor)
+
+	elevatorSetFloor(newFloor)
+	switch newFloor {
+	case NFloors - 1:
+		elevatorSetDir(Down)
+		break
+	case 0:
+		elevatorSetDir(Up)
+		break
+	}
+	elevatorPrint()
+}
+
+// Matches the elevator lights with the current internalQueue
+func elevatorLightsMatchQueue() {
+	for floor := 0; floor < NFloors; floor++ {
+		for button := 0; button < NButtonTypes; button++ {
+			if internalQGet(floor, button) == true {
+				elevio.SetButtonLamp(elevio.ButtonType(button), floor, true)
+			} else {
+				elevio.SetButtonLamp(elevio.ButtonType(button), floor, false)
+			}
+		}
+	}
 }
 
 // Set a new direction and update state
@@ -47,7 +73,7 @@ func elevatorSetDir(newDirection ElevDir) {
 	elevatorSetMotorDir(newDirection)
 }
 
-// Set a new direction and update state
+// Set a new direction while maintaining state
 func elevatorSetMotorDir(newDirection ElevDir) {
 	elevio.SetMotorDirection(elevio.MotorDirection(newDirection))
 }

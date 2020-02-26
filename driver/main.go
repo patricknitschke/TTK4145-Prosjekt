@@ -24,11 +24,10 @@ func main() {
 	go elevio.PollStopButton(drvStop)
 
 	// FSM responds to events on the channels
+	go fsmPollButtonRequest(drvButtons) // Continuously handles the pressing of buttons
+
 	for {
 		select {
-		case a := <-drvButtons:
-			fsmOnButtonRequest(a)
-
 		case a := <-drvFloors:
 			fsmOnNewFloor(a)
 
@@ -42,4 +41,5 @@ func main() {
 			// Run continous code here - other FSM stuff
 		}
 	}
+
 }
