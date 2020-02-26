@@ -75,7 +75,10 @@ func internalQRemoveForDir(floor int, currentDirection ElevDir) {
 	case Up:
 		internalQPop(floor, int(HallUp))
 	case Down:
+		internalQPop(floor, int(HallDn))
+	case Stop:
 		internalQPop(floor, int(HallUp))
+		internalQPop(floor, int(HallDn))
 	}
 }
 
@@ -132,13 +135,12 @@ func internalQCheckBelow(currentFloor int) bool {
 func internalQCheckThisFloorSameDir(currentFloor int, currentDirection ElevDir) bool {
 	if internalQueue[currentFloor][Cab] {
 		return true
-	} else if currentDirection == Up && internalQueue[currentFloor][HallUp] {
+	} else if (currentDirection == Up || currentDirection == Stop) && internalQueue[currentFloor][HallUp] {
 		return true
-	} else if currentDirection == Down && internalQueue[currentFloor][HallDn] {
+	} else if (currentDirection == Down || currentDirection == Stop) && internalQueue[currentFloor][HallDn] {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // Returns an elevator direction after checking current direction and orders
@@ -158,7 +160,7 @@ func internalQReturnElevDir(currentFloor int, currentDirection ElevDir) ElevDir 
 		}
 	case Stop:
 		if internalQCheckAbove(currentFloor) == true {
-			return currentDirection
+			return Up
 		} else if internalQCheckBelow(currentFloor) == true {
 			return Down
 		}

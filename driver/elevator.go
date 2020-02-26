@@ -43,18 +43,13 @@ func elevatorServeOrder(floor int, dir ElevDir) {
 
 // Set a new direction and update state
 func elevatorSetDir(newDirection ElevDir) {
-	switch newDirection {
-	case Up:
-		elevio.SetMotorDirection(elevio.MD_Up)
-		elevator.dir = Up
-	case Down:
-		elevio.SetMotorDirection(elevio.MD_Down)
-		elevator.dir = Down
-	case Stop:
-		elevio.SetMotorDirection(elevio.MD_Stop)
-		elevator.dir = Stop
-	default:
-	}
+	elevator.dir = newDirection
+	elevatorSetMotorDir(newDirection)
+}
+
+// Set a new direction and update state
+func elevatorSetMotorDir(newDirection ElevDir) {
+	elevio.SetMotorDirection(elevio.MotorDirection(newDirection))
 }
 
 // Set a new floor state
