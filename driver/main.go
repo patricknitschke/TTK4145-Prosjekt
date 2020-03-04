@@ -10,24 +10,30 @@ func main() {
 	// Initialise modules here
 	elevatorInit()
 	internalQInit()
+	decisionInit()
 
 	// Channels
 	drvButtons := make(chan elevio.ButtonEvent)
 	drvFloors := make(chan int)
 	drvObstr := make(chan bool)
 	drvStop := make(chan bool)
+	decOrders := make(chan Order)
 
 	// Each goroutine updates the channels when they're available
 	go elevio.PollButtons(drvButtons)
 	go elevio.PollFloorSensor(drvFloors)
 	go elevio.PollObstructionSwitch(drvObstr)
 	go elevio.PollStopButton(drvStop)
+	go decisionPollOrders(decOrders)
 
 	// FSM responds to events on the channels
 	go fsmPollButtonRequest(drvButtons) // Continuously handles the pressing of buttons
 
 	for {
 		select {
+		case a := <-decOrders:
+			fsmOnOrderReceived(a)
+
 		case a := <-drvFloors:
 			fsmOnNewFloor(a)
 

@@ -26,30 +26,40 @@ func fsmOnNewFloor(newFloor int) {
 	}
 }
 
-// Runs fsmOnButtonRequest forever (used in go routine)
-func fsmPollButtonRequest(drvButtons chan elevio.ButtonEvent) {
-	for {
-		fsmOnButtonRequest(<-drvButtons)
-	}
-}
-
-// Recieves a ButtonEvent and places it into internalQueue (later send to Decision module instead of internalQ)
-func fsmOnButtonRequest(a elevio.ButtonEvent) {
+// Receive an order from decision module
+func fsmOnOrderReceived(o Order) {
 	fmt.Print("Received new order: ")
-	fmt.Printf("%+v\n", a)
+	fmt.Printf("%+v\n", o)
 
 	// Handle order for current floor directly (if stopped), then internalQueue unnecessary
-	if a.Floor == elevatorGetFloor() && elevatorGetDir() == Stop {
+	if o.floor == elevatorGetFloor() && elevatorGetDir() == Stop {
+		elevatorSetLight(o.floor, int(o.orderT), true)
 		fsmDoorState()
+		elevatorSetLight(o.floor, int(o.orderT), false)
 		return
 	}
 
-	internalQRecieveOrder(a)
+	internalQRecieveOrder(o)
 	elevatorLightsMatchQueue()
 
 	// Set the elevator in motion if not already
 	if elevatorGetDir() == Stop {
 		elevatorSetDir(internalQReturnElevDir(elevatorGetFloor(), elevatorGetDir()))
+	}
+}
+
+// Recieves a ButtonEvent and sends it to decision module
+func fsmOnButtonRequest(a elevio.ButtonEvent) {
+	orderT := ButtonTypeToOrderTypeMap[a.Button]
+	order := Order{orderT, a.Floor}
+
+	decisionDecide(order)
+}
+
+// Runs fsmOnButtonRequest forever (in go routine)
+func fsmPollButtonRequest(drvButtons chan elevio.ButtonEvent) {
+	for {
+		fsmOnButtonRequest(<-drvButtons)
 	}
 }
 
@@ -71,6 +81,7 @@ func fsmOnObstruction(a bool) {
 	} else {
 		elevatorInit()
 		internalQInit()
+		decisionInit()
 		elevatorLightsMatchQueue()
 	}
 }
@@ -81,5 +92,6 @@ func fsmOnStop(a bool) {
 	fmt.Printf("%+v\n", a)
 	elevatorInit()
 	internalQInit()
+	decisionInit()
 	elevatorLightsMatchQueue()
 }

@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"strings"
-
-	"./elevio"
 )
 
 /* Constants and variables */
@@ -14,29 +12,6 @@ const NFloors = 4
 
 // NButtonTypes are "var order elevio.ButtonType : HallUp , HallDown, Cab" - from elevio
 const NButtonTypes = 3
-
-// OrderType is an enum for internalQueue - matches elevio.ButtonType
-type OrderType int
-
-// HallUp, HallDn and Cab are the OrderType symbols
-const (
-	HallUp OrderType = 0
-	HallDn           = 1
-	Cab              = 2
-)
-
-// Order makes things simpler for other modules
-type Order struct {
-	orderT OrderType
-	floor  int
-}
-
-// OrderToButtonTypesMap solves the trouble of having two enums
-var OrderToButtonTypesMap = map[OrderType]elevio.ButtonType{
-	HallUp: elevio.BT_HallUp,
-	HallDn: elevio.BT_HallDown,
-	Cab:    elevio.BT_Cab,
-}
 
 // InternalQueue maintains orders for its node
 var internalQueue [NFloors][NButtonTypes]bool
@@ -62,9 +37,8 @@ func internalQInit() {
 }
 
 // Receive an order (from elevio - Later recieved from DECISION)
-func internalQRecieveOrder(order elevio.ButtonEvent) {
-	orderT := int(order.Button)
-	internalQSet(order.Floor, orderT)
+func internalQRecieveOrder(order Order) {
+	internalQSet(order.floor, int(order.orderT))
 	fmt.Println("Order recieved:")
 	internalQPrint()
 }

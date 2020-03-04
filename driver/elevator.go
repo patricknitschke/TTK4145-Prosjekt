@@ -59,9 +59,9 @@ func elevatorLightsMatchQueue() {
 	for floor := 0; floor < NFloors; floor++ {
 		for button := 0; button < NButtonTypes; button++ {
 			if internalQGet(floor, button) == true {
-				elevio.SetButtonLamp(elevio.ButtonType(button), floor, true)
+				elevatorSetLight(button, floor, true)
 			} else {
-				elevio.SetButtonLamp(elevio.ButtonType(button), floor, false)
+				elevatorSetLight(button, floor, false)
 			}
 		}
 	}
@@ -81,6 +81,11 @@ func elevatorSetMotorDir(newDirection ElevDir) {
 // Set a new floor state
 func elevatorSetFloor(newFloor int) {
 	elevator.currentFloor = newFloor
+}
+
+// Sets a button lamp to state
+func elevatorSetLight(floor int, button int, state bool) {
+	elevio.SetButtonLamp(elevio.ButtonType(button), floor, state)
 }
 
 // Return the elevator direction
