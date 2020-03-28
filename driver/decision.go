@@ -2,108 +2,98 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"./elevio"
 )
 
 /* Constants and variables */
 
-const _pollRate = 20 * time.Millisecond
-
-// NNodes represents the no. of elevator nodes in our network
-const NNodes = 3
-
-// OrderType is an enum for decision - matches elevio.ButtonType
-type OrderType int
-
-// HallUp, HallDn and Cab are the OrderType symbols
-const (
-	HallUp OrderType = 0
-	HallDn           = 1
-	Cab              = 2
-)
-
-// Order makes things simpler for other modules
-type Order struct {
-	orderT OrderType
-	floor  int
-}
-
-// An order buffer that allows internalQ to pick up orders
-var orderBuffer chan Order
-
-// ButtonTypeToOrderTypeMap solves the trouble of having two enums
-var ButtonTypeToOrderTypeMap = map[elevio.ButtonType]OrderType{
-	elevio.BT_HallUp:   HallUp,
-	elevio.BT_HallDown: HallDn,
-	elevio.BT_Cab:      Cab,
-}
-
-//
-//
-//
-
 /* Decision module functions */
 
 // Initialise decision module and variables
 func decisionInit() {
-	orderBuffer = make(chan Order)
 	fmt.Println("Initialised decision")
 }
 
 // Samples the costs and sends an order to a node
-func decisionDecide(order Order) {
-	deliveryNode := decisionSampleCosts(order)
-	fmt.Print("Order to 'Node ")
-	fmt.Print(deliveryNode)
-	fmt.Println("' decided.")
+func decisionDecide(newOrder Order, decLocalOrders chan<- Order, decSharedQOrders chan<- Order) {
+	deliveryNode := decisionCostFunction(newOrder)
 
-	// Send to sharedQ
-	myNode := 1
-	if deliveryNode == myNode {
-		go func() {
-			for {
-				fmt.Print("Order sending...")
-				orderBuffer <- order
-				fmt.Print("Order sent.")
-				return
-			}
-		}()
+	if deliveryNode == LocalID {
+		for {
+			decLocalOrders <- newOrder
+			return
+		}
+	} else {
+		for {
+			// Am I supposed to send to SharedQ though? I know the best elevator
+			decSharedQOrders <- newOrder
+
+			// maybe decNetOrders with new struct, given they're online
+			// decNetOrders <- NetworkPacket{ElevID, newOrder}
+			return
+		}
 	}
 }
 
-// Delivers an order to internalQ once channel has order
-func decisionPollOrders(receiver chan<- Order) {
+// Continuosly sends orders to decision, which decides between internalQ or other nodes
+func decisionPollButtonRequests(drvButtons <-chan elevio.ButtonEvent, decLocalOrders chan<- Order, decSharedQOrders chan<- Order) {
 	for {
-		select {
-		case o := <-orderBuffer:
-			receiver <- o
-		}
+		a := <-drvButtons
+		orderT := OrderType(a.Button)
+		order := Order{orderT, a.Floor}
+
+		decisionDecide(order, decLocalOrders, decSharedQOrders)
 	}
 }
 
-// Obtains the cost to serve an order from each node and returns the minimum node ID
-func decisionSampleCosts(order Order) int {
+// Calculates the cost of an order based on the Elevator positions and state, returns optimal Node
+func decisionCostFunction(newOrder Order) int {
 
-	// Sample costs using sharedQ
-	costsToServe := [NNodes]int{5, 3, 7}
+	// NNodes is 0 now, remember to change in config
+	var elevatorList [NNodes]Elevator
+	var elevatorOnline [NNodes]bool
 
-	// Return minimum node
-	var minIndex int
-	var minCost int
-	for index, cost := range costsToServe {
-		if index == 0 || cost < minCost {
-			minCost = cost
-			minIndex = index
+	// TODO Get elevatorList and onlineList somehow
+	elevatorList[LocalID] = elevator // My state
+	elevatorOnline[LocalID] = true
+	// TODO ///////////////////////////////////////
+
+	if newOrder.orderT == Cab {
+		return LocalID
+	}
+	var CostArray [NNodes]int
+	for elev := 0; elev < NNodes; elev++ {
+		cost := newOrder.floor - elevatorList[elev].currentFloor
+		if cost == 0 && elevatorOnline[elev] && !elevatorList[elev].MotorFailure {
+			return elev
+		}
+		if cost < 0 {
+			cost = -cost
+			if elevatorList[elev].dir == Up {
+				cost += 3
+			}
+		} else if cost > 0 {
+			if elevatorList[elev].dir == Down {
+				cost += 3
+			}
+		}
+		if elevatorList[elev].doorState == true {
+			cost++
+		}
+		CostArray[elev] = cost
+	}
+	fmt.Print("Cost to Serve: ")
+	fmt.Println(CostArray)
+	maxCost := 1000
+	var bestElev int
+	for elev := 0; elev < NNodes; elev++ {
+		if CostArray[elev] < maxCost && elevatorOnline[elev] && !elevatorList[elev].MotorFailure {
+			bestElev = elev
+			maxCost = CostArray[elev]
 		}
 	}
-	return minIndex
-}
-
-// Calculates the cost to serve an order based
-func decisionCostFunction(order Order) {
-
+	return bestElev
 }
 
 // Listens for an order confirmation from a node
@@ -111,7 +101,7 @@ func decisionConfirm() {
 
 }
 
-// Sends an order to internalQ when receiving an order from another node
+// Sends an order to internalQ when receiving an order from another node (Or sharedQ???)
 func decisionRecieveOrder() {
 
 }

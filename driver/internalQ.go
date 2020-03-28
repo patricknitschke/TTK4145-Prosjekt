@@ -7,12 +7,6 @@ import (
 
 /* Constants and variables */
 
-// NFloors represents the number of floors - make sure to match elevio file
-const NFloors = 4
-
-// NButtonTypes are "var order elevio.ButtonType : HallUp , HallDown, Cab" - from elevio
-const NButtonTypes = 3
-
 // InternalQueue maintains orders for its node
 var internalQueue [NFloors][NButtonTypes]bool
 
@@ -57,9 +51,15 @@ func internalQRemoveOrder(floor int, currentDirection ElevDir) {
 	switch currentDirection {
 	case Up:
 		internalQPop(floor, int(HallUp))
+		if internalQCheckAbove(floor) == false {
+			internalQPop(floor, int(HallDn))
+		}
 		break
 	case Down:
 		internalQPop(floor, int(HallDn))
+		if internalQCheckBelow(floor) == false {
+			internalQPop(floor, int(HallUp))
+		}
 		break
 	case Stop:
 		internalQPop(floor, int(HallUp))
@@ -92,13 +92,21 @@ func internalQReturnElevDir(currentFloor int, currentDirection ElevDir) ElevDir 
 	return Stop // No orders for exist for current direction
 }
 
-// Returns true if there exists an order on current floor with SAME direction
-func internalQCheckThisFloorSameDir(currentFloor int, currentDirection ElevDir) bool {
+// Returns true if there exists an order on current floor with SAME direction OR if no other orders beyond
+func internalQCheckThisFloorThisDir(currentFloor int, currentDirection ElevDir) bool {
+	// Check current floor for same dir
 	if internalQueue[currentFloor][Cab] {
 		return true
 	} else if (currentDirection == Up || currentDirection == Stop) && internalQueue[currentFloor][HallUp] {
 		return true
 	} else if (currentDirection == Down || currentDirection == Stop) && internalQueue[currentFloor][HallDn] {
+		return true
+	}
+
+	// Check current floor for no orders beyond
+	if currentDirection == Up && internalQCheckAbove(currentFloor) == false {
+		return true
+	} else if currentDirection == Down && internalQCheckBelow(currentFloor) == false {
 		return true
 	}
 	return false

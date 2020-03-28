@@ -11,41 +11,30 @@ func main() {
 	elevatorInit()
 	internalQInit()
 	decisionInit()
+	fsmInit()
 
 	// Channels
-	drvButtons := make(chan elevio.ButtonEvent)
-	drvFloors := make(chan int)
-	drvObstr := make(chan bool)
-	drvStop := make(chan bool)
-	decOrders := make(chan Order)
+	drvChans := DriverChans{
+		make(chan elevio.ButtonEvent),
+		make(chan int),
+		make(chan bool),
+		make(chan bool)}
+
+	// Orders to Local Elevator and SharedQ
+	decLocalOrders := make(chan Order)
+	decSharedQOrders := make(chan Order)
 
 	// Each goroutine updates the channels when they're available
-	go elevio.PollButtons(drvButtons)
-	go elevio.PollFloorSensor(drvFloors)
-	go elevio.PollObstructionSwitch(drvObstr)
-	go elevio.PollStopButton(drvStop)
-	go decisionPollOrders(decOrders)
+	go elevio.PollButtons(drvChans.drvButtons)
+	go elevio.PollFloorSensor(drvChans.drvFloors)
+	go elevio.PollObstructionSwitch(drvChans.drvObstr)
+	go elevio.PollStopButton(drvChans.drvStop)
 
-	// FSM responds to events on the channels
-	go fsmPollButtonRequest(drvButtons) // Continuously handles the pressing of buttons
+	go decisionPollButtonRequests(drvChans.drvButtons, decLocalOrders, decSharedQOrders) // Continuously handles the pressing of buttons
 
-	for {
-		select {
-		case a := <-decOrders:
-			fsmOnOrderReceived(a)
+	// Local FSM responds to events on the channels
+	go fsmPollOrders(decLocalOrders) // Handles new orders from decision (decOrders)
+	go fsmDriving(drvChans)          // Starts elev if stopped and incoming order
 
-		case a := <-drvFloors:
-			fsmOnNewFloor(a)
-
-		case a := <-drvObstr:
-			fsmOnObstruction(a)
-
-		case a := <-drvStop:
-			fsmOnStop(a)
-
-		default:
-			// Run continous code here - other FSM stuff
-		}
-	}
-
+	select {}
 }
