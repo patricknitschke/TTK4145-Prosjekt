@@ -1,3 +1,9 @@
 Run physical elevator at Lab:
     Type <<ElevatorServer>> in terminal
 
+Run simulator:
+    Type <<./SimElevatorServer>> in terminal in Simulator_linux
+    Arguments:
+        --numfloors n, for n floors
+        --port n, for port n
+

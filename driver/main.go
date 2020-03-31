@@ -1,45 +1,39 @@
 package main
 
 import (
+	"./config"
+	"./decision"
+	"./elevator"
 	"./elevio"
 )
 
 func main() {
-	elevio.Init("localhost:15657", NFloors) // Connect to Elevator Server
+	elevio.Init("localhost:15657", config.NFloors) // Connect to Elevator Server
 
 	// Initialise modules here
-	elevatorInit()
-	internalQInit()
+	elevator.Init()
 
 	// Channels
-	drvButtons := make(chan elevio.ButtonEvent)
-	drvFloors := make(chan int)
-	drvObstr := make(chan bool)
-	drvStop := make(chan bool)
-
-	// Each goroutine updates the channels when they're available
-	go elevio.PollButtons(drvButtons)
-	go elevio.PollFloorSensor(drvFloors)
-	go elevio.PollObstructionSwitch(drvObstr)
-	go elevio.PollStopButton(drvStop)
-
-	// FSM responds to events on the channels
-	go fsmPollButtonRequest(drvButtons) // Continuously handles the pressing of buttons
-
-	for {
-		select {
-		case a := <-drvFloors:
-			fsmOnNewFloor(a)
-
-		case a := <-drvObstr:
-			fsmOnObstruction(a)
-
-		case a := <-drvStop:
-			fsmOnStop(a)
-
-		default:
-			// Run continous code here - other FSM stuff
-		}
+	drvChans := config.DriverChans{
+		DrvButtons: make(chan elevio.ButtonEvent),
+		DrvFloors:  make(chan int),
+		DrvObstr:   make(chan bool),
+		DrvStop:    make(chan bool),
 	}
 
+	// Orders to Local Elevator and SharedQ
+	elevNewOrder := make(chan config.Order)
+	decLocalOrders := make(chan config.Order)
+	decSharedQOrders := make(chan config.Order)
+
+	// Update driver channels and take in new Orders
+	go elevator.PollDriverChannels(drvChans, elevNewOrder)
+
+	// Local FSM responds to events on the channels
+	go elevator.FsmRun(drvChans, decLocalOrders)
+
+	// Continuously handles new Orders
+	go decision.Decide(elevNewOrder, decLocalOrders, decSharedQOrders)
+
+	select {}
 }
